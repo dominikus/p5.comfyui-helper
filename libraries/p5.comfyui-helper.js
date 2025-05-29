@@ -146,9 +146,9 @@ class ComfyUiP5Helper {
 
     return {
       inputs: {
-        image: data_url.split("base64,")[1],
+        data: data_url.split("base64,")[1],
       },
-      class_type: "ETN_LoadImageBase64",
+      class_type: "LoadImageFromBase64",
       _meta: {
         title: "Load Image (Base64)",
       },
@@ -168,7 +168,7 @@ class ComfyUiP5Helper {
       inputs: {
         image: data_url.split("base64,")[1],
       },
-      class_type: "ETN_LoadMaskBase64",
+      class_type: "LoadMaskFromBase64",
       _meta: {
         title: "Load Mask (Base64)",
       },
