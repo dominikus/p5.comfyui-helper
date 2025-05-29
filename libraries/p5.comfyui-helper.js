@@ -5,13 +5,15 @@
  * https://github.com/gohai/p5.comfyui-helper
  */
 
-'use strict';
+"use strict";
 
 class ComfyUiP5Helper {
   constructor(base_url) {
     this.base_url = base_url.replace(/\/$/, ""); // strip any trailing slash
     this.setup_websocket();
     this.outputs = [];
+
+    this.running_prompts = [];
   }
 
   setup_websocket() {
@@ -35,6 +37,11 @@ class ComfyUiP5Helper {
         // this is being sent periodically during processing
         this.current_prompt = data.data.prompt_id;
         this.current_node = data.data.node;
+
+        // if there's a status callback set up for the current prompt, run it
+        if (this.running_prompts?.[this.current_prompt]?.status_callback) {
+          this.running_prompts[this.current_prompt].status_callback(data.data);
+        }
       } else if (data.type == "execution_success") {
         if (data.data.prompt_id == this.prompt_id) {
           //console.log("Execution finished");
@@ -81,17 +88,17 @@ class ComfyUiP5Helper {
     }
   }
 
-  async run(workflow, callback) {
+  async run(workflow, callback, status_callback) {
     this.replace_saveimage_with_websocket(workflow);
     this.callback = callback;
-    this.prompt_id = await this.prompt(workflow);
+    this.prompt_id = await this.prompt(workflow, status_callback);
     return new Promise((resolve, reject) => {
       this.resolve = resolve;
       this.reject = reject;
     });
   }
 
-  async prompt(workflow) {
+  async prompt(workflow, status_callback) {
     let options = {
       method: "POST",
       body: JSON.stringify({ prompt: workflow, client_id: this.sid }),
@@ -118,6 +125,9 @@ class ComfyUiP5Helper {
           throw "Status " + res.status;
         }
       }
+
+      this.running_prompts[data.prompt_id] = { status_callback };
+
       return data.prompt_id;
     } catch (e) {
       console.warn(e);
