@@ -21,7 +21,7 @@ class ComfyUiP5Helper {
     this.ws.addEventListener("message", this.websocket_on_message.bind(this));
   }
 
-  websocket_on_message(event) {
+  async websocket_on_message(event) {
     if (typeof event.data == "string") {
       const data = JSON.parse(event.data);
       if (data.type == "status") {
@@ -45,11 +45,13 @@ class ComfyUiP5Helper {
       } else if (data.type == "execution_success") {
         if (data.data.prompt_id == this.prompt_id) {
           //console.log("Execution finished");
+          await this.get_outputs_from_history(this.prompt_id);
           if (this.callback) {
             this.callback(this.outputs);
           }
           this.resolve(this.outputs);
           this.outputs = [];
+          delete this.running_prompts[this.current_prompt];
         }
       } else if (data.type == "execution_interrupted") {
         console.warn("Execution was interrupted");
@@ -80,16 +82,46 @@ class ComfyUiP5Helper {
     }
   }
 
-  replace_saveimage_with_websocket(workflow) {
-    for (let key in workflow) {
-      if (workflow[key].class_type == "SaveImage") {
-        workflow[key].class_type = "SaveImageWebsocket";
+  async get_outputs_from_history(prompt_id) {
+    try {
+      let res = await fetch(this.base_url + "/history/" + prompt_id);
+      let history = await res.json();
+
+      history = history[prompt_id];
+
+      // flatten resulting images and only use the ones of type 'output':
+      let image_outputs = Object.entries(history.outputs)
+        .filter(([key, value]) => value?.images?.length > 0)
+        .reduce((acc, [key, value]) => {
+          acc[key] = value.images.filter((d) => d.type === "output");
+          return acc;
+        }, {});
+
+      for (const [node_number, images] of Object.entries(image_outputs)) {
+        for (const image of images) {
+          const img_encoded = new URLSearchParams(image);
+          const blob_url =
+            this.base_url + "/view?" + encodeURI(img_encoded.toString());
+
+          this.outputs.push({
+            node: parseInt(node_number),
+            src: blob_url,
+          });
+        }
       }
+    } catch (e) {
+      console.warn(e);
+      throw e;
     }
   }
 
   async run(workflow, callback, status_callback) {
-    this.replace_saveimage_with_websocket(workflow);
+    // wait while we're waiting for the Comfy connection being set up...
+    const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+    while (!this.sid) {
+      await delay(100);
+    }
+
     this.callback = callback;
     this.prompt_id = await this.prompt(workflow, status_callback);
     return new Promise((resolve, reject) => {
