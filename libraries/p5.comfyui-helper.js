@@ -220,30 +220,10 @@ class ComfyUiP5Helper {
       this.upload_canvas(canvas, filename).finally(() => {
         delete this.running_uploads[filename];
       });
+
+      return filename;
     } else {
       throw "image() is currently only implemented for p5 Graphics/Renderer/Image objects";
     }
-
-    return filename;
-  }
-
-  mask(img) {
-    let data_url;
-    if (img.loadPixels) {
-      img.loadPixels();
-      data_url = img.canvas.toDataURL();
-    } else {
-      throw "mask() is currently only implemented for p5 images";
-    }
-
-    return {
-      inputs: {
-        image: data_url.split("base64,")[1],
-      },
-      class_type: "LoadMaskFromBase64",
-      _meta: {
-        title: "Load Mask (Base64)",
-      },
-    };
   }
 }
