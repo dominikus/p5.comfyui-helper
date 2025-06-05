@@ -13,7 +13,8 @@ class ComfyUiP5Helper {
     this.setup_websocket();
     this.outputs = [];
 
-    this.running_prompts = [];
+    this.running_prompts = {};
+    this.running_uploads = {};
   }
 
   setup_websocket() {
@@ -116,9 +117,10 @@ class ComfyUiP5Helper {
   }
 
   async run(workflow, callback, status_callback) {
-    // wait while we're waiting for the Comfy connection being set up...
+    // stall while we're waiting for the Comfy connection being set up
+    // as well as images being uploaded:
     const delay = (ms) => new Promise((res) => setTimeout(res, ms));
-    while (!this.sid) {
+    while (!this.sid || Object.values(this.running_uploads).length > 0) {
       await delay(100);
     }
 
@@ -167,24 +169,62 @@ class ComfyUiP5Helper {
     }
   }
 
+  upload_canvas(canvas, filename) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          const formData = new FormData();
+          formData.append("image", blob, filename);
+          formData.append("type", "input");
+
+          let options = {
+            method: "POST",
+            body: formData,
+            redirect: "follow",
+          };
+
+          fetch(this.base_url + "/upload/image", options)
+            .then((res) => res.json())
+            .then((json) => {
+              // console.log("Upload response:", json);
+              resolve(json.name);
+            })
+            .catch((err) => {
+              console.warn("Upload failed:", err);
+              reject(err);
+            });
+        },
+        "image/jpeg",
+        0.95
+      );
+    });
+  }
+
   image(img) {
-    let data_url;
+    let filename;
     if (img.loadPixels) {
       img.loadPixels();
-      data_url = img.canvas.toDataURL();
+      let canvas = img.canvas;
+
+      // generate a random filename:
+      filename = "p5.comfyui-helper-";
+      if (crypto) {
+        filename += crypto.randomUUID();
+      } else {
+        filename += Math.random().toString(36).substring(2);
+      }
+      filename += ".jpg";
+
+      // start upload:
+      this.running_uploads[filename] = true;
+      this.upload_canvas(canvas, filename).finally(() => {
+        delete this.running_uploads[filename];
+      });
     } else {
-      throw "image() is currently only implemented for p5 images";
+      throw "image() is currently only implemented for p5 Graphics/Renderer/Image objects";
     }
 
-    return {
-      inputs: {
-        data: data_url.split("base64,")[1],
-      },
-      class_type: "LoadImageFromBase64",
-      _meta: {
-        title: "Load Image (Base64)",
-      },
-    };
+    return filename;
   }
 
   mask(img) {
