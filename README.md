@@ -7,7 +7,6 @@ A library for p5.js which adds support for interacting with ComfyUI, using its A
 * Submit images or p5 drawing surfaces as inputs to workflows (e.g. for img2img, ...)
 * Easy to use API that supports multiple outputs as well
 * Works with promises or callbacks
-* Fast (uses WebSocket instead of file transfers)
 
 ## Reference
 
@@ -106,6 +105,16 @@ Alternatively, you can also use the `await` keyword to wait for the `run` method
 
 ```
 let results = await comfy.run(workflow);
+```
+
+You can also add a third (optional) parameter to receive status updates while the workflow is running:
+
+```
+comfy.run(workflow, gotImage, gotStatus);
+
+function gotStatus(status){
+  console.log(status);
+}
 ```
 
 #### Receiving results
