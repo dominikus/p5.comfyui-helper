@@ -23,9 +23,9 @@ A library for p5.js which adds support for interacting with ComfyUI, using its A
 
 ## Prerequisites
 
-* [ComfyUI](https://github.com/comfyanonymous/ComfyUI) (tested with v0.2.4)
+* [ComfyUI](https://github.com/comfyanonymous/ComfyUI) (tested with v0.4.51)
 * If you are running your own ComfyUI installation:
-    * Make sure to start Comfy with the following arguments: ```--listen 0.0.0.0 --enable-cors-header```
+    * Make sure to start Comfy with the following arguments: ```--listen 0.0.0.0 --enable-cors-header '*'```
     * If the site you will be accessing Comfy from uses HTTPS, you will need to provision a certificate, and load it into ComfyUI with ```--tls-keyfile privkey.pem --tls-certfile fullchain.pem```. This is needed if you want to make use of the p5.js web editor.
 
 ## Setup
